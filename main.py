@@ -52,70 +52,70 @@ def create_driver():
     driver.set_page_load_timeout(30)
     return driver
 
-def check_ticket(url, ticket_name, driver):
+def check_ticket(url, ticket_name):
     section = [f"\n🎫 {ticket_name}"]
-    for attempt in range(2):
-        try:
-            driver.get(url)
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, '.panel-title'))
-            )
-            screenshot_file = f"screenshot-{ticket_name.lower().replace(' ', '-')}.png"
-            driver.save_screenshot(screenshot_file)
-            send_telegram_screenshot(screenshot_file)
+    driver = create_driver()
+    try:
+        for attempt in range(2):
+            try:
+                driver.get(url)
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, '.panel-title'))
+                )
+                screenshot_file = f"screenshot-{ticket_name.lower().replace(' ', '-')}.png"
+                driver.save_screenshot(screenshot_file)
+                send_telegram_screenshot(screenshot_file)
 
-            cards = driver.find_elements(By.CSS_SELECTOR, '.row.no-gutters.align-items-center.m-0')
-            found = False
-            for card in cards:
-                try:
-                    label = card.find_element(By.TAG_NAME, 'p').text.strip().lower()
-                    if ticket_name.lower() in label:
-                        btn = card.find_element(By.CSS_SELECTOR, 'a.btn-buy')
-                        btn_text = btn.text.strip()
-                        if "buy" in btn_text.lower():
-                            section.append(f"✅ Available – {btn_text}")
-                        elif "sold" in btn_text.lower():
-                            section.append(f"❌ Sold Out – {btn_text}")
-                        else:
-                            section.append(f"⚠️ Unknown – {btn_text}")
-                        found = True
-                        break
-                except Exception:
+                cards = driver.find_elements(By.CSS_SELECTOR, '.row.no-gutters.align-items-center.m-0')
+                found = False
+                for card in cards:
+                    try:
+                        label = card.find_element(By.TAG_NAME, 'p').text.strip().lower()
+                        if ticket_name.lower() in label:
+                            btn = card.find_element(By.CSS_SELECTOR, 'a.btn-buy')
+                            btn_text = btn.text.strip()
+                            if "buy" in btn_text.lower():
+                                section.append(f"✅ Available – {btn_text}")
+                            elif "sold" in btn_text.lower():
+                                section.append(f"❌ Sold Out – {btn_text}")
+                            else:
+                                section.append(f"⚠️ Unknown – {btn_text}")
+                            found = True
+                            break
+                    except Exception:
+                        continue
+
+                if not found:
+                    section.append("❌ Ticket not found on page")
+                break
+
+            except TimeoutException:
+                if attempt == 0:
+                    section.append("⚠️ Timeout – Retrying once...")
                     continue
-
-            if not found:
-                section.append("❌ Ticket not found on page")
-            break
-
-        except TimeoutException:
-            if attempt == 0:
-                section.append("⚠️ Timeout – Retrying once...")
-                continue
-            else:
-                section.append("❌ Error loading page: Timeout")
-        except Exception as e:
-            section.append(f"❌ Error loading page: {str(e)}")
-            break
+                else:
+                    section.append("❌ Error loading page: Timeout")
+            except Exception as e:
+                section.append(f"❌ Error loading page: {str(e)}")
+                break
+    finally:
+        driver.quit()
 
     return section
 
 def check_ticket_status():
-    driver = create_driver()
-    try:
-        messages = ["📡 Ticket Check Status:"]
-        messages += check_ticket(WALKABOUT_URL, "Zone 4 Walkabout", driver)
-        messages += check_ticket(GRANDSTAND_URL, "Stamford Grandstand", driver)
-        send_telegram_message("\n".join(messages))
-    finally:
-        driver.quit()
+    messages = ["📡 Ticket Check Status:"]
+    messages += check_ticket(WALKABOUT_URL, "Zone 4 Walkabout")
+    messages += check_ticket(GRANDSTAND_URL, "Stamford Grandstand")
+    send_telegram_message("\n".join(messages))
 
 def run_checker():
     sgt = pytz.timezone('Asia/Singapore')
     while True:
         now = datetime.now(sgt)
-        next_time = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+        next_time = (now + timedelta(hours=1)).replace(minute=1, second=0, microsecond=0)
         sleep_duration = (next_time - now).total_seconds()
-        print(f"🕒 SGT now: {now.strftime('%Y-%m-%d %H:%M:%S')} | Sleeping {int(sleep_duration)} sec until next hour...")
+        print(f"🕒 SGT now: {now.strftime('%Y-%m-%d %H:%M:%S')} | Sleeping {int(sleep_duration)} sec until next check at {next_time.strftime('%H:%M')}...")
         time.sleep(sleep_duration)
 
         try:
@@ -136,8 +136,8 @@ def run_now():
 threading.Thread(target=run_checker, daemon=True).start()
 
 if TELEGRAM_TOKEN and CHAT_ID:
-    print("🚀 Bot started. Monitoring will run at the start of every hour (SGT).")
-    send_telegram_message("🚀 Bot started. Monitoring will run at the start of every hour (SGT).")
+    print("🚀 Bot started. Monitoring will run at 1 minute past every hour (SGT).")
+    send_telegram_message("🚀 Bot started. Monitoring will run at 1 minute past every hour (SGT).")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
