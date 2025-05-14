@@ -30,6 +30,17 @@ def send_telegram_message(message):
     except Exception as e:
         print("❌ Telegram error:", e)
 
+def send_telegram_screenshot(image_path):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendPhoto"
+    with open(image_path, 'rb') as img:
+        files = {'photo': img}
+        data = {'chat_id': CHAT_ID, 'caption': '📸 Screenshot of the ticket status'}
+        try:
+            requests.post(url, files=files, data=data)
+            print("✅ Screenshot sent to Telegram.")
+        except Exception as e:
+            print("❌ Screenshot upload failed:", e)
+
 def create_driver():
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")
@@ -49,6 +60,10 @@ def check_ticket(url, ticket_name, driver):
             WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, '.panel-title'))
             )
+            screenshot_file = f"screenshot-{ticket_name.lower().replace(' ', '-')}.png"
+            driver.save_screenshot(screenshot_file)
+            send_telegram_screenshot(screenshot_file)
+
             cards = driver.find_elements(By.CSS_SELECTOR, '.row.no-gutters.align-items-center.m-0')
             found = False
             for card in cards:
