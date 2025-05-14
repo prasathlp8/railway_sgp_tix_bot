@@ -64,7 +64,6 @@ def check_ticket(url, ticket_name):
                 )
                 driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
                 time.sleep(1)
-                )
                 screenshot_file = f"screenshot-{ticket_name.lower().replace(' ', '-')}.png"
                 driver.save_screenshot(screenshot_file)
                 send_telegram_screenshot(screenshot_file)
