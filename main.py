@@ -30,11 +30,12 @@ def send_telegram_message(message):
     except Exception as e:
         print("❌ Telegram error:", e)
 
-def send_telegram_screenshot(image_path):
+def send_telegram_screenshot(image_path, ticket_name):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendPhoto"
     with open(image_path, 'rb') as img:
         files = {'photo': img}
-        data = {'chat_id': CHAT_ID, 'caption': '📸 Screenshot of the ticket status'}
+        caption = f"📸 Screenshot of {ticket_name} Ticket"
+        data = {'chat_id': CHAT_ID, 'caption': caption}
         try:
             requests.post(url, files=files, data=data)
             print("✅ Screenshot sent to Telegram.")
@@ -62,11 +63,13 @@ def check_ticket(url, ticket_name):
                 WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, '.panel-title'))
                 )
-                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                time.sleep(1)
+                if "stamford" in ticket_name.lower():
+                    driver.execute_script("window.scrollBy(0, 600);")
+                    time.sleep(1)
                 screenshot_file = f"screenshot-{ticket_name.lower().replace(' ', '-')}.png"
                 driver.save_screenshot(screenshot_file)
-                send_telegram_screenshot(screenshot_file)
+                send_telegram_screenshot(screenshot_file, ticket_name)
+                os.remove(screenshot_file)
 
                 cards = driver.find_elements(By.CSS_SELECTOR, '.row.no-gutters.align-items-center.m-0')
                 found = False
